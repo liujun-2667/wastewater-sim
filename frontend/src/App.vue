@@ -32,6 +32,19 @@
               </el-form>
             </div>
 
+            <el-progress
+              v-if="simulating || isAnimating"
+              :percentage="progressPercent"
+              :status="simulating ? '' : 'success'"
+              style="margin-bottom: 16px"
+            >
+              <template #default="{ percentage }">
+                <span style="font-size: 13px">
+                  {{ simulating ? '计算中...' : '动画演示中...' }} {{ percentage }}%
+                </span>
+              </template>
+            </el-progress>
+
             <el-button
               type="primary"
               size="large"
@@ -55,7 +68,12 @@
                 <h3><el-icon><data-analysis /></el-icon>仿真结果</h3>
               </div>
               <div class="panel-body">
-                <SimulationResults :result="simulationResult" />
+                <SimulationResults
+                  :result="simulationResult"
+                  :animate="true"
+                  @animation-done="onAnimationDone"
+                  @progress="updateAnimationProgress"
+                />
               </div>
             </div>
           </el-tab-pane>
@@ -80,7 +98,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { Setting, DataAnalysis, Aim, VideoPlay } from '@element-plus/icons-vue'
 import InfluentInput from './components/InfluentInput.vue'
 import ProcessConfig from './components/ProcessConfig.vue'
@@ -91,7 +109,21 @@ import { ElMessage } from 'element-plus'
 
 const activeResultTab = ref('results')
 const simulating = ref(false)
+const isAnimating = ref(false)
 const simulationResult = ref(null)
+const computeProgress = ref(0)
+const animationProgress = ref(0)
+let computeProgressTimer = null
+
+const progressPercent = computed(() => {
+  if (simulating.value) {
+    return computeProgress.value
+  }
+  if (isAnimating.value) {
+    return 70 + Math.floor(animationProgress.value * 0.3)
+  }
+  return 0
+})
 
 const influent = reactive({
   cod: 300,
@@ -134,6 +166,18 @@ onMounted(async () => {
 
 const runSimulation = async () => {
   simulating.value = true
+  isAnimating.value = false
+  computeProgress.value = 0
+  animationProgress.value = 0
+  simulationResult.value = null
+  activeResultTab.value = 'results'
+
+  const totalSteps = Math.ceil(simConfig.total_duration_days * 24 / simConfig.time_step_hours)
+  const progressPerTick = 70 / Math.max(totalSteps / 5, 10)
+  computeProgressTimer = setInterval(() => {
+    computeProgress.value = Math.min(69, computeProgress.value + progressPerTick)
+  }, 100)
+
   try {
     const res = await simulationApi.simulate({
       influent: { ...influent },
@@ -141,22 +185,50 @@ const runSimulation = async () => {
       sim_config: { ...simConfig }
     })
 
+    if (computeProgressTimer) {
+      clearInterval(computeProgressTimer)
+      computeProgressTimer = null
+    }
+    computeProgress.value = 70
+
     if (res.data) {
       simulationResult.value = res.data
+      isAnimating.value = true
       if (res.data.success) {
-        ElMessage.success('仿真完成')
+        ElMessage.success('仿真完成，正在展示结果...')
       } else {
         ElMessage.warning(res.data.message)
       }
     } else {
+      simulating.value = false
       ElMessage.error(res.message || '仿真失败')
     }
   } catch (e) {
-    ElMessage.error('仿真失败: ' + (e.message || '未知错误'))
-  } finally {
+    if (computeProgressTimer) {
+      clearInterval(computeProgressTimer)
+      computeProgressTimer = null
+    }
     simulating.value = false
+    ElMessage.error('仿真失败: ' + (e.message || '未知错误'))
   }
 }
+
+const onAnimationDone = () => {
+  simulating.value = false
+  isAnimating.value = false
+  animationProgress.value = 100
+}
+
+const updateAnimationProgress = (percent) => {
+  animationProgress.value = percent
+}
+
+onBeforeUnmount(() => {
+  if (computeProgressTimer) {
+    clearInterval(computeProgressTimer)
+    computeProgressTimer = null
+  }
+})
 </script>
 
 <style scoped>

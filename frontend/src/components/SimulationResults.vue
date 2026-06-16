@@ -141,18 +141,93 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
-import { SankeyChart, PieChart } from 'echarts/charts'
+import { LineChart, BarChart, SankeyChart, PieChart } from 'echarts/charts'
+import {
+  GridComponent,
+  TooltipComponent,
+  LegendComponent,
+  TitleComponent
+} from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
 
-use([SankeyChart, PieChart])
+use([
+  LineChart,
+  BarChart,
+  SankeyChart,
+  PieChart,
+  GridComponent,
+  TooltipComponent,
+  LegendComponent,
+  TitleComponent,
+  CanvasRenderer
+])
 
 const props = defineProps({
   result: {
     type: Object,
     default: null
+  },
+  animate: {
+    type: Boolean,
+    default: true
   }
+})
+
+const emit = defineEmits(['animation-done', 'progress'])
+
+const displayStepCount = ref(0)
+let animationTimer = null
+
+watch(
+  () => props.result,
+  (newVal) => {
+    if (animationTimer) {
+      clearInterval(animationTimer)
+      animationTimer = null
+    }
+    if (!newVal || !newVal.time_series || !newVal.time_series.length) {
+      displayStepCount.value = 0
+      return
+    }
+    if (!props.animate) {
+      displayStepCount.value = newVal.time_series.length
+      emit('animation-done')
+      emit('progress', 100)
+      return
+    }
+    displayStepCount.value = 0
+    const total = newVal.time_series.length
+    const stepsPerTick = Math.max(1, Math.ceil(total / 80))
+    const interval = Math.max(30, 1000 / 40)
+    animationTimer = setInterval(() => {
+      displayStepCount.value += stepsPerTick
+      const percent = Math.min(100, Math.floor(displayStepCount.value / total * 100))
+      emit('progress', percent)
+      if (displayStepCount.value >= total) {
+        displayStepCount.value = total
+        clearInterval(animationTimer)
+        animationTimer = null
+        emit('animation-done')
+        emit('progress', 100)
+      }
+    }, interval)
+  },
+  { immediate: true }
+)
+
+onBeforeUnmount(() => {
+  if (animationTimer) {
+    clearInterval(animationTimer)
+    animationTimer = null
+  }
+})
+
+const visibleTimeSeries = computed(() => {
+  if (!props.result || !props.result.time_series) return []
+  return props.result.time_series.slice(0, displayStepCount.value)
 })
 
 const complianceRows = computed(() => {
@@ -183,8 +258,8 @@ const qualityRows = computed(() => {
 })
 
 const nitrogenChartOption = computed(() => {
-  if (!props.result || !props.result.time_series.length) return {}
-  const ts = props.result.time_series
+  if (!visibleTimeSeries.value.length) return {}
+  const ts = visibleTimeSeries.value
   return {
     tooltip: { trigger: 'axis' },
     legend: { data: ['NH3-N', 'NO3-N', 'TN'], top: 0 },
@@ -198,37 +273,44 @@ const nitrogenChartOption = computed(() => {
     },
     yAxis: {
       type: 'value',
-      name: '浓度 (mg/L)'
+      name: '浓度 (mg/L)',
+      min: 0
     },
     series: [
       {
         name: 'NH3-N',
         type: 'line',
         smooth: true,
-        data: ts.map(t => t.aerobic_effluent.nh3_n.toFixed(2)),
-        itemStyle: { color: '#f56c6c' }
+        showSymbol: false,
+        data: ts.map(t => Number(t.aerobic_effluent.nh3_n.toFixed(2))),
+        itemStyle: { color: '#f56c6c' },
+        lineStyle: { width: 2 }
       },
       {
         name: 'NO3-N',
         type: 'line',
         smooth: true,
-        data: ts.map(t => t.aerobic_effluent.no3_n.toFixed(2)),
-        itemStyle: { color: '#409eff' }
+        showSymbol: false,
+        data: ts.map(t => Number(t.aerobic_effluent.no3_n.toFixed(2))),
+        itemStyle: { color: '#409eff' },
+        lineStyle: { width: 2 }
       },
       {
         name: 'TN',
         type: 'line',
         smooth: true,
-        data: ts.map(t => t.aerobic_effluent.tn.toFixed(2)),
-        itemStyle: { color: '#67c23a' }
+        showSymbol: false,
+        data: ts.map(t => Number(t.aerobic_effluent.tn.toFixed(2))),
+        itemStyle: { color: '#67c23a' },
+        lineStyle: { width: 2 }
       }
     ]
   }
 })
 
 const mainChartOption = computed(() => {
-  if (!props.result || !props.result.time_series.length) return {}
-  const ts = props.result.time_series
+  if (!visibleTimeSeries.value.length) return {}
+  const ts = visibleTimeSeries.value
   return {
     tooltip: { trigger: 'axis' },
     legend: { data: ['COD', 'BOD5', 'SS', 'TP'], top: 0 },
@@ -242,36 +324,45 @@ const mainChartOption = computed(() => {
     },
     yAxis: {
       type: 'value',
-      name: '浓度 (mg/L)'
+      name: '浓度 (mg/L)',
+      min: 0
     },
     series: [
       {
         name: 'COD',
         type: 'line',
         smooth: true,
-        data: ts.map(t => t.final_effluent.cod.toFixed(1)),
-        itemStyle: { color: '#667eea' }
+        showSymbol: false,
+        data: ts.map(t => Number(t.final_effluent.cod.toFixed(1))),
+        itemStyle: { color: '#667eea' },
+        lineStyle: { width: 2 }
       },
       {
         name: 'BOD5',
         type: 'line',
         smooth: true,
-        data: ts.map(t => t.final_effluent.bod5.toFixed(1)),
-        itemStyle: { color: '#764ba2' }
+        showSymbol: false,
+        data: ts.map(t => Number(t.final_effluent.bod5.toFixed(1))),
+        itemStyle: { color: '#764ba2' },
+        lineStyle: { width: 2 }
       },
       {
         name: 'SS',
         type: 'line',
         smooth: true,
-        data: ts.map(t => t.final_effluent.ss.toFixed(1)),
-        itemStyle: { color: '#e6a23c' }
+        showSymbol: false,
+        data: ts.map(t => Number(t.final_effluent.ss.toFixed(1))),
+        itemStyle: { color: '#e6a23c' },
+        lineStyle: { width: 2 }
       },
       {
         name: 'TP',
         type: 'line',
         smooth: true,
-        data: ts.map(t => t.final_effluent.tp.toFixed(3)),
-        itemStyle: { color: '#909399' }
+        showSymbol: false,
+        data: ts.map(t => Number(t.final_effluent.tp.toFixed(3))),
+        itemStyle: { color: '#909399' },
+        lineStyle: { width: 2 }
       }
     ]
   }

@@ -126,8 +126,24 @@
 import { ref, computed, watch } from 'vue'
 import { UploadFilled } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
+import { use } from 'echarts/core'
+import { BarChart } from 'echarts/charts'
+import {
+  GridComponent,
+  TooltipComponent,
+  TitleComponent
+} from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
 import { simulationApi } from '../api'
 import { ElMessage } from 'element-plus'
+
+use([
+  BarChart,
+  GridComponent,
+  TooltipComponent,
+  TitleComponent,
+  CanvasRenderer
+])
 
 const emit = defineEmits(['update:modelValue'])
 const props = defineProps({
@@ -212,7 +228,8 @@ const applyMeanValues = () => {
 }
 
 const histogramOption = (data) => {
-  const barWidth = (data[data.length - 1][0] - data[0][0]) / data.length * 0.8
+  if (!data || !data.length) return {}
+  const barWidth = Math.max(10, (data[data.length - 1][0] - data[0][0]) / data.length * 0.8)
   return {
     tooltip: {
       trigger: 'axis',
@@ -228,11 +245,12 @@ const histogramOption = (data) => {
     },
     yAxis: {
       type: 'value',
-      name: '频数'
+      name: '频数',
+      min: 0
     },
     series: [{
       type: 'bar',
-      data: data.map(d => d[1]),
+      data: data.map(d => Number(d[1])),
       barWidth: barWidth,
       itemStyle: {
         color: '#667eea'

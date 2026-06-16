@@ -139,11 +139,27 @@
 import { ref, computed, watch } from 'vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
-import { HeatmapChart, ScatterChart } from 'echarts/charts'
+import { LineChart, HeatmapChart, ScatterChart } from 'echarts/charts'
+import {
+  GridComponent,
+  TooltipComponent,
+  LegendComponent,
+  VisualMapComponent
+} from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
 import { simulationApi } from '../api'
 import { ElMessage } from 'element-plus'
 
-use([HeatmapChart, ScatterChart])
+use([
+  LineChart,
+  HeatmapChart,
+  ScatterChart,
+  GridComponent,
+  TooltipComponent,
+  LegendComponent,
+  VisualMapComponent,
+  CanvasRenderer
+])
 
 const props = defineProps({
   influent: Object,
@@ -290,12 +306,14 @@ const sensitivity1dOption = computed(() => {
       {
         type: 'value',
         name: '浓度 (mg/L)',
-        position: 'left'
+        position: 'left',
+        min: 0
       },
       {
         type: 'value',
         name: 'kWh/m³',
-        position: 'right'
+        position: 'right',
+        min: 0
       }
     ],
     series: [
@@ -303,35 +321,38 @@ const sensitivity1dOption = computed(() => {
         name: 'TN',
         type: 'line',
         smooth: true,
-        data: points.map(p => p.tn.toFixed(2)),
+        showSymbol: false,
+        data: points.map(p => Number(p.tn.toFixed(2))),
         itemStyle: { color: '#67c23a' },
-        symbolSize: 8
+        lineStyle: { width: 2 }
       },
       {
         name: 'NH3-N',
         type: 'line',
         smooth: true,
-        data: points.map(p => p.nh3_n.toFixed(2)),
+        showSymbol: false,
+        data: points.map(p => Number(p.nh3_n.toFixed(2))),
         itemStyle: { color: '#f56c6c' },
-        symbolSize: 8
+        lineStyle: { width: 2 }
       },
       {
         name: 'TP',
         type: 'line',
         smooth: true,
-        data: points.map(p => p.tp.toFixed(3)),
+        showSymbol: false,
+        data: points.map(p => Number(p.tp.toFixed(3))),
         itemStyle: { color: '#e6a23c' },
-        symbolSize: 8
+        lineStyle: { width: 2 }
       },
       {
         name: 'kWh/m³',
         type: 'line',
         smooth: true,
+        showSymbol: false,
         yAxisIndex: 1,
-        data: points.map(p => p.kwh_per_m3.toFixed(4)),
+        data: points.map(p => Number(p.kwh_per_m3.toFixed(4))),
         itemStyle: { color: '#667eea' },
-        symbolSize: 8,
-        lineStyle: { type: 'dashed' }
+        lineStyle: { width: 2, type: 'dashed' }
       }
     ]
   }
