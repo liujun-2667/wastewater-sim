@@ -1,3 +1,17 @@
 .DS_Store
 *.log
 .env
+
+# Rust
+backend/target/
+backend/Cargo.lock
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# IDE
+.vscode/
+.idea/
+*.iml
