@@ -2,7 +2,7 @@
   <div class="app-container">
     <div class="app-header">
       <h1>
-        <el-icon style="margin-right: 12px; vertical-align: -3px"><water-opposite /></el-icon>
+        <el-icon style="margin-right: 12px; vertical-align: -3px"><setting /></el-icon>
         污水处理工艺仿真与出水水质预测工具
       </h1>
       <p>基于ASM1简化模型的A²/O工艺仿真系统 | 支持参数灵敏度分析与能耗估算</p>
@@ -81,7 +81,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { WaterOpposite, Setting, DataAnalysis, Aim, VideoPlay } from '@element-plus/icons-vue'
+import { Setting, DataAnalysis, Aim, VideoPlay } from '@element-plus/icons-vue'
 import InfluentInput from './components/InfluentInput.vue'
 import ProcessConfig from './components/ProcessConfig.vue'
 import SimulationResults from './components/SimulationResults.vue'

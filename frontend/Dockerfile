@@ -3,6 +3,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package.json package.json
+COPY .npmrc .npmrc
 RUN npm install
 
 COPY . .

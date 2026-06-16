@@ -62,7 +62,7 @@ pub fn calculate_aerobic_reactions(
 
     let nitrification_rate = kinetics.mu_max_nitrif
         * monod_equation(output.nh3_n, kinetics.ks_nh3)
-        * monod_equation(output.do, 0.5)
+        * monod_equation(output.dissolved_oxygen, 0.5)
         * overall_corr;
 
     let nh3_removed = (nitrification_rate * biomass * output.nh3_n * dt_days).min(output.nh3_n);
@@ -70,7 +70,7 @@ pub fn calculate_aerobic_reactions(
     output.no3_n += nh3_removed;
 
     let bod_removal_rate = kinetics.k_bod_oxidation
-        * monod_equation(output.do, 0.2)
+        * monod_equation(output.dissolved_oxygen, 0.2)
         * overall_corr;
     let bod_removed = (bod_removal_rate * output.bod5 * dt_days).min(output.bod5);
     output.bod5 -= bod_removed;
@@ -81,7 +81,7 @@ pub fn calculate_aerobic_reactions(
     output.cod -= cod_removed;
 
     let p_uptake_rate = kinetics.p_release_rate * kinetics.p_uptake_factor
-        * monod_equation(output.do, 0.3)
+        * monod_equation(output.dissolved_oxygen, 0.3)
         * overall_corr;
     let po4_uptaken = (p_uptake_rate * biomass * dt_days * 1000.0).min(output.po4_p);
     output.po4_p -= po4_uptaken;
@@ -91,8 +91,8 @@ pub fn calculate_aerobic_reactions(
 
     let do_consumption = (bod_removed * 0.5 + nh3_removed * 4.57) * dt_days * 24.0;
     let do_supply = config.aeration_rate / config.aerobic.volume * 0.25;
-    output.do = (output.do - do_consumption + do_supply * dt_days).clamp(0.0, config.aerobic.do_setpoint * 1.2);
-    output.do = output.do.max(0.1);
+    output.dissolved_oxygen = (output.dissolved_oxygen - do_consumption + do_supply * dt_days).clamp(0.0, config.aerobic.do_setpoint * 1.2);
+    output.dissolved_oxygen = output.dissolved_oxygen.max(0.1);
 
     output.tn = output.nh3_n + output.no3_n + (input.tn - input.nh3_n - input.no3_n) * 0.5;
 
@@ -121,7 +121,7 @@ pub fn calculate_anoxic_reactions(
     mixed.tp = (input.tp + r * return_sludge.tp + ri * internal_recirc.tp) / total_flow;
     mixed.po4_p = (input.po4_p + r * return_sludge.po4_p + ri * internal_recirc.po4_p) / total_flow;
     mixed.vfa = (input.vfa + r * return_sludge.vfa + ri * internal_recirc.vfa) / total_flow;
-    mixed.do = (input.do + r * return_sludge.do + ri * internal_recirc.do) / total_flow;
+    mixed.dissolved_oxygen = (input.dissolved_oxygen + r * return_sludge.dissolved_oxygen + ri * internal_recirc.dissolved_oxygen) / total_flow;
     mixed.tn = (input.tn + r * return_sludge.tn + ri * internal_recirc.tn) / total_flow;
 
     let mut output = mixed.clone();
@@ -141,7 +141,7 @@ pub fn calculate_anoxic_reactions(
 
     let denit_rate = kinetics.denitrification_rate
         * monod_equation(mixed.no3_n, 0.5)
-        * (1.0 - monod_equation(mixed.do, 0.5))
+        * (1.0 - monod_equation(mixed.dissolved_oxygen, 0.5))
         * cn_factor
         * overall_corr;
 
@@ -155,7 +155,7 @@ pub fn calculate_anoxic_reactions(
 
     output.tn = output.nh3_n + output.no3_n + (mixed.tn - mixed.nh3_n - mixed.no3_n) * 0.7;
 
-    output.do = (output.do * 0.3).max(0.05);
+    output.dissolved_oxygen = (output.dissolved_oxygen * 0.3).max(0.05);
 
     output
 }
@@ -180,7 +180,7 @@ pub fn calculate_anaerobic_reactions(
     mixed.tp = (input.tp + r * return_sludge.tp) / total_flow;
     mixed.po4_p = (input.po4_p + r * return_sludge.po4_p) / total_flow;
     mixed.vfa = (input.vfa + r * return_sludge.vfa) / total_flow;
-    mixed.do = (input.do + r * return_sludge.do) / total_flow;
+    mixed.dissolved_oxygen = (input.dissolved_oxygen + r * return_sludge.dissolved_oxygen) / total_flow;
     mixed.tn = (input.tn + r * return_sludge.tn) / total_flow;
 
     let mut output = mixed.clone();
@@ -193,7 +193,7 @@ pub fn calculate_anaerobic_reactions(
 
     let p_release_rate = kinetics.p_release_rate
         * monod_equation(mixed.vfa, 10.0)
-        * (1.0 - monod_equation(mixed.do, 0.2))
+        * (1.0 - monod_equation(mixed.dissolved_oxygen, 0.2))
         * (1.0 - monod_equation(mixed.no3_n, 1.0))
         * overall_corr;
 
@@ -207,7 +207,7 @@ pub fn calculate_anaerobic_reactions(
     output.bod5 = (output.bod5 - fermentation_bod).max(0.0);
     output.vfa += fermentation_bod * 0.8;
 
-    output.do = (output.do * 0.05).max(0.01);
+    output.dissolved_oxygen = (output.dissolved_oxygen * 0.05).max(0.01);
     output.no3_n *= 0.95;
 
     output

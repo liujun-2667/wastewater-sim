@@ -132,7 +132,8 @@ pub struct WaterQuality {
     pub tp: f64,
     pub po4_p: f64,
     pub vfa: f64,
-    pub do: f64,
+    #[serde(rename = "do")]
+    pub dissolved_oxygen: f64,
 }
 
 impl WaterQuality {
@@ -147,14 +148,14 @@ impl WaterQuality {
             tp: influent.tp,
             po4_p: influent.tp * 0.6,
             vfa: influent.cod * 0.15,
-            do: 0.5,
+            dissolved_oxygen: 0.5,
         }
     }
 
     pub fn empty() -> Self {
         Self {
             cod: 0.0, bod5: 0.0, ss: 0.0, tn: 0.0, nh3_n: 0.0,
-            no3_n: 0.0, tp: 0.0, po4_p: 0.0, vfa: 0.0, do: 0.0,
+            no3_n: 0.0, tp: 0.0, po4_p: 0.0, vfa: 0.0, dissolved_oxygen: 0.0,
         }
     }
 
