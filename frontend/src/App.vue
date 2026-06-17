@@ -266,6 +266,7 @@
                   :simulation-result="simulationResult"
                   :influent="influent"
                   :process-config="processConfig"
+                  :simulating="simulating || isAnimating"
                   @apply-params="onApplyDiagnosisParams"
                 />
               </div>

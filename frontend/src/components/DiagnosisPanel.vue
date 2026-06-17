@@ -47,9 +47,10 @@
                 <span class="category-label">{{ item.category }}</span>
               </div>
               <el-tag
-                :type="severityTagType(item.severity)"
+                :color="severityColor(item.severity)"
                 size="default"
                 effect="dark"
+                style="border: none"
               >
                 {{ item.severity }}
               </el-tag>
@@ -89,13 +90,13 @@
             type="success"
             size="large"
             @click="applyRecommendations"
-            :disabled="applying"
-            :loading="applying"
+            :disabled="applying || props.simulating"
+            :loading="applying || props.simulating"
           >
             <el-icon style="margin-right: 6px"><check /></el-icon>
-            一键应用推荐参数
+            {{ props.simulating ? '仿真运行中...' : '一键应用推荐参数' }}
           </el-button>
-          <el-button size="large" @click="clearDiagnosis">
+          <el-button size="large" @click="clearDiagnosis" :disabled="props.simulating">
             清除诊断结果
           </el-button>
         </div>
@@ -128,9 +129,10 @@
                 发现 <b>{{ record.conclusions.length }}</b> 条问题
                 <el-tag
                   v-if="getMaxSeverity(record.conclusions)"
-                  :type="severityTagType(getMaxSeverity(record.conclusions))"
+                  :color="severityColor(getMaxSeverity(record.conclusions))"
                   size="small"
-                  style="margin-left: 6px"
+                  effect="dark"
+                  style="margin-left: 6px; border: none"
                 >
                   {{ getMaxSeverity(record.conclusions) }}
                 </el-tag>
@@ -170,7 +172,7 @@
                     <el-icon :size="20"><component :is="categoryIcon(item.category)" /></el-icon>
                     <span class="category-label">{{ item.category }}</span>
                   </div>
-                  <el-tag :type="severityTagType(item.severity)" size="default" effect="dark">
+                  <el-tag :color="severityColor(item.severity)" size="default" effect="dark" style="border: none">
                     {{ item.severity }}
                   </el-tag>
                 </div>
@@ -210,7 +212,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { simulationApi } from '../api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -230,6 +232,10 @@ const props = defineProps({
   processConfig: {
     type: Object,
     required: true
+  },
+  simulating: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -254,11 +260,11 @@ const severityClass = (severity) => {
   return 'mild'
 }
 
-const severityTagType = (severity) => {
-  if (severity === '轻度') return 'warning'
-  if (severity === '中度') return 'danger'
-  if (severity === '重度') return 'danger'
-  return 'info'
+const severityColor = (severity) => {
+  if (severity === '轻度') return '#d4a017'
+  if (severity === '中度') return '#e6770e'
+  if (severity === '重度') return '#f56c6c'
+  return '#909399'
 }
 
 const categoryIcon = (category) => {
@@ -424,7 +430,6 @@ const applyRecommendations = () => {
     }
 
     emit('apply-params', updatedConfig)
-    applying.value = false
   }).catch(() => {
     applying.value = false
   })
@@ -433,6 +438,12 @@ const applyRecommendations = () => {
 const clearDiagnosis = () => {
   diagnosisResult.value = null
 }
+
+watch(() => props.simulating, (newVal, oldVal) => {
+  if (oldVal && !newVal) {
+    applying.value = false
+  }
+})
 
 loadHistory()
 </script>
@@ -476,12 +487,12 @@ loadHistory()
 }
 
 .diagnosis-card.severity-mild {
-  border-left: 4px solid #e6a23c;
+  border-left: 4px solid #d4a017;
 }
 
 .diagnosis-card.severity-moderate {
-  border-left: 4px solid #f56c6c;
-  background: #fff8f8;
+  border-left: 4px solid #e6770e;
+  background: #fff8f0;
 }
 
 .diagnosis-card.severity-severe {

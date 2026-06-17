@@ -1,4 +1,5 @@
 use crate::models::*;
+use crate::simulation::{ComplianceResult, UnitEffluents};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
