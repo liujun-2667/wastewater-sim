@@ -255,6 +255,22 @@
               </div>
             </div>
           </el-tab-pane>
+
+          <el-tab-pane label="工况诊断" name="diagnosis">
+            <div class="panel">
+              <div class="panel-header">
+                <h3><el-icon><first-aid-kit /></el-icon>智能工况诊断与参数优化推荐</h3>
+              </div>
+              <div class="panel-body">
+                <DiagnosisPanel
+                  :simulation-result="simulationResult"
+                  :influent="influent"
+                  :process-config="processConfig"
+                  @apply-params="onApplyDiagnosisParams"
+                />
+              </div>
+            </div>
+          </el-tab-pane>
         </el-tabs>
       </div>
     </div>
@@ -262,12 +278,13 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { Setting, DataAnalysis, Aim, VideoPlay, FolderAdd, RefreshLeft, Delete, ScaleToOriginal, Warning } from '@element-plus/icons-vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { Setting, DataAnalysis, Aim, VideoPlay, FolderAdd, RefreshLeft, Delete, ScaleToOriginal, Warning, FirstAidKit } from '@element-plus/icons-vue'
 import InfluentInput from './components/InfluentInput.vue'
 import ProcessConfig from './components/ProcessConfig.vue'
 import SimulationResults from './components/SimulationResults.vue'
 import SensitivityAnalysis from './components/SensitivityAnalysis.vue'
+import DiagnosisPanel from './components/DiagnosisPanel.vue'
 import { simulationApi } from './api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import VChart from 'vue-echarts'
@@ -651,6 +668,14 @@ watch(activeResultTab, (tab) => {
     }, 100)
   }
 })
+
+const onApplyDiagnosisParams = (updatedConfig) => {
+  Object.assign(processConfig, updatedConfig)
+  activeResultTab.value = 'results'
+  nextTick(() => {
+    runSimulation()
+  })
+}
 
 onBeforeUnmount(() => {
   if (computeProgressTimer) {

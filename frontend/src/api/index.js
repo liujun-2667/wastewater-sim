@@ -32,6 +32,10 @@ export const simulationApi = {
 
   parseCsv(csvContent) {
     return api.post('/csv/parse', { csv_content: csvContent })
+  },
+
+  diagnose(data) {
+    return api.post('/diagnose', data)
   }
 }
 

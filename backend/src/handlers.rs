@@ -16,6 +16,7 @@ use crate::sensitivity::{
     SensitivityRequest, SensitivityResult, TwoDimSensitivityRequest, TwoDimSensitivityResult,
 };
 use crate::csv_utils::{parse_csv, compute_statistics, CsvStatistics};
+use crate::diagnosis::{run_diagnosis, DiagnosisRequest, DiagnosisResponse};
 
 #[derive(Clone)]
 pub struct AppState;
@@ -61,6 +62,7 @@ pub fn create_router() -> Router {
         .route("/api/sensitivity", post(sensitivity))
         .route("/api/sensitivity/2d", post(sensitivity_2d))
         .route("/api/csv/parse", post(parse_csv_endpoint))
+        .route("/api/diagnose", post(diagnose))
         .layer(cors)
         .with_state(Arc::new(state))
 }
@@ -151,4 +153,16 @@ async fn parse_csv_endpoint(
             data: None,
         }),
     }
+}
+
+async fn diagnose(
+    State(_state): State<Arc<AppState>>,
+    Json(req): Json<DiagnosisRequest>,
+) -> Json<ApiResponse<DiagnosisResponse>> {
+    let result = run_diagnosis(&req);
+    Json(ApiResponse {
+        success: true,
+        message: format!("诊断完成，共发现{}条问题", result.conclusions.len()),
+        data: Some(result),
+    })
 }
