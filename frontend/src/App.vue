@@ -159,19 +159,17 @@
                       选择要对比的方案
                       <el-tag type="info" size="small" style="margin-left: 8px">已选 {{ selectedPlans.length }}/3</el-tag>
                     </div>
-                    <div class="compare-checkbox-group">
+                    <el-checkbox-group v-model="selectedPlans" :max="3" class="compare-checkbox-group">
                       <el-checkbox
                         v-for="(plan, index) in savedPlans"
                         :key="plan.id"
-                        v-model="selectedPlans"
                         :label="plan.id"
-                        :disabled="selectedPlans.length >= 3 && !selectedPlans.includes(plan.id)"
                         border
                       >
                         <el-tag size="small" :type="tagColors[index % tagColors.length]" effect="light">方案{{ index + 1 }}</el-tag>
                         <span style="margin-left: 6px">{{ plan.name }}</span>
                       </el-checkbox>
-                    </div>
+                    </el-checkbox-group>
                     <div class="compare-actions">
                       <el-button
                         type="primary"

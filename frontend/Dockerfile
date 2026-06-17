@@ -7,6 +7,7 @@ COPY .npmrc .npmrc
 RUN npm install
 
 COPY . .
+ENV NODE_OPTIONS=--max-old-space-size=4096
 RUN npm run build
 
 FROM nginx:alpine

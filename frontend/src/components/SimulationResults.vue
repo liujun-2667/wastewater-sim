@@ -162,7 +162,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { LineChart, BarChart, SankeyChart, PieChart } from 'echarts/charts'
@@ -495,56 +495,180 @@ const generateConclusion = () => {
   }
 }
 
-const getChartDataUrl = (chartRef) => {
-  return new Promise((resolve) => {
-    nextTick(() => {
-      if (chartRef.value && chartRef.value.getEchartsInstance) {
-        const instance = chartRef.value.getEchartsInstance()
-        resolve(instance.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#fff' }))
-      } else {
-        resolve('')
-      }
-    })
-  })
+const renderChartToDataUrl = (option, width = 800, height = 400) => {
+  if (!option || !option.series || !option.series.length) return ''
+  const div = document.createElement('div')
+  div.style.width = width + 'px'
+  div.style.height = height + 'px'
+  div.style.position = 'absolute'
+  div.style.left = '-9999px'
+  div.style.top = '-9999px'
+  document.body.appendChild(div)
+  try {
+    const chart = echarts.init(div)
+    chart.setOption(option)
+    const dataUrl = chart.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#fff' })
+    chart.dispose()
+    document.body.removeChild(div)
+    return dataUrl
+  } catch (e) {
+    console.warn('图表渲染失败', e)
+    if (div.parentNode) document.body.removeChild(div)
+    return ''
+  }
 }
 
-const exportReport = async () => {
+const buildFullNitrogenOption = (ts) => {
+  if (!ts || !ts.length) return {}
+  return {
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['NH3-N', 'NO3-N', 'TN'], top: 0 },
+    grid: { left: 50, right: 30, top: 40, bottom: 40 },
+    xAxis: {
+      type: 'category',
+      data: ts.map(t => (t.time_hours / 24).toFixed(1)),
+      name: '时间 (天)',
+      nameLocation: 'middle',
+      nameGap: 28
+    },
+    yAxis: { type: 'value', name: '浓度 (mg/L)', min: 0 },
+    series: [
+      { name: 'NH3-N', type: 'line', smooth: true, showSymbol: false, data: ts.map(t => Number(t.aerobic_effluent.nh3_n.toFixed(2))), itemStyle: { color: '#f56c6c' }, lineStyle: { width: 2 } },
+      { name: 'NO3-N', type: 'line', smooth: true, showSymbol: false, data: ts.map(t => Number(t.aerobic_effluent.no3_n.toFixed(2))), itemStyle: { color: '#409eff' }, lineStyle: { width: 2 } },
+      { name: 'TN', type: 'line', smooth: true, showSymbol: false, data: ts.map(t => Number(t.aerobic_effluent.tn.toFixed(2))), itemStyle: { color: '#67c23a' }, lineStyle: { width: 2 } }
+    ]
+  }
+}
+
+const buildFullMainOption = (ts) => {
+  if (!ts || !ts.length) return {}
+  return {
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['COD', 'BOD5', 'SS', 'TP'], top: 0 },
+    grid: { left: 50, right: 30, top: 40, bottom: 40 },
+    xAxis: {
+      type: 'category',
+      data: ts.map(t => (t.time_hours / 24).toFixed(1)),
+      name: '时间 (天)',
+      nameLocation: 'middle',
+      nameGap: 28
+    },
+    yAxis: { type: 'value', name: '浓度 (mg/L)', min: 0 },
+    series: [
+      { name: 'COD', type: 'line', smooth: true, showSymbol: false, data: ts.map(t => Number(t.final_effluent.cod.toFixed(1))), itemStyle: { color: '#667eea' }, lineStyle: { width: 2 } },
+      { name: 'BOD5', type: 'line', smooth: true, showSymbol: false, data: ts.map(t => Number(t.final_effluent.bod5.toFixed(1))), itemStyle: { color: '#764ba2' }, lineStyle: { width: 2 } },
+      { name: 'SS', type: 'line', smooth: true, showSymbol: false, data: ts.map(t => Number(t.final_effluent.ss.toFixed(1))), itemStyle: { color: '#e6a23c' }, lineStyle: { width: 2 } },
+      { name: 'TP', type: 'line', smooth: true, showSymbol: false, data: ts.map(t => Number(t.final_effluent.tp.toFixed(3))), itemStyle: { color: '#909399' }, lineStyle: { width: 2 } }
+    ]
+  }
+}
+
+const buildFullEnergyPieOption = (result) => {
+  if (!result || !result.energy_consumption) return {}
+  const data = result.energy_consumption.breakdown.map(b => ({
+    name: b[0],
+    value: Number(b[1].toFixed(2))
+  }))
+  return {
+    tooltip: { trigger: 'item', formatter: '{b}: {c} kWh ({d}%)' },
+    legend: { bottom: 0 },
+    series: [{
+      type: 'pie',
+      radius: ['40%', '70%'],
+      avoidLabelOverlap: false,
+      label: { show: true, formatter: '{b}\n{d}%' },
+      data: data,
+      color: ['#667eea', '#67c23a', '#e6a23c']
+    }]
+  }
+}
+
+const exportReport = () => {
   const result = props.result
   if (!result) return
 
-  const nitrogenChart = await getChartDataUrl(nitrogenChartRef)
-  const mainChart = await getChartDataUrl(mainChartRef)
-  const energyChart = await getChartDataUrl(energyChartRef)
+  const inf = { ...props.influent }
+  const pc = JSON.parse(JSON.stringify(props.processConfig))
+  const sc = { ...props.simConfig }
+  const c = result.compliance ? { ...result.compliance } : null
+  const ec = result.energy_consumption ? { ...result.energy_consumption } : null
+  const ts = result.time_series || []
+
+  const nitrogenChart = renderChartToDataUrl(buildFullNitrogenOption(ts))
+  const mainChart = renderChartToDataUrl(buildFullMainOption(ts))
+  const energyChart = renderChartToDataUrl(buildFullEnergyPieOption(result))
 
   const now = new Date()
-  const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  const pad2 = n => String(n).padStart(2, '0')
+  const timeStr = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())} ${pad2(now.getHours())}:${pad2(now.getMinutes())}`
 
   const influentRows = [
-    ['COD', props.influent.cod, 'mg/L'],
-    ['BOD5', props.influent.bod5, 'mg/L'],
-    ['SS', props.influent.ss, 'mg/L'],
-    ['TN', props.influent.tn, 'mg/L'],
-    ['NH3-N', props.influent.nh3_n, 'mg/L'],
-    ['TP', props.influent.tp, 'mg/L'],
-    ['pH', props.influent.ph, ''],
-    ['水温', props.influent.temperature, '℃']
+    ['COD', inf.cod, 'mg/L'],
+    ['BOD5', inf.bod5, 'mg/L'],
+    ['SS', inf.ss, 'mg/L'],
+    ['TN', inf.tn, 'mg/L'],
+    ['NH3-N', inf.nh3_n, 'mg/L'],
+    ['TP', inf.tp, 'mg/L'],
+    ['pH', inf.ph, ''],
+    ['水温', inf.temperature, '℃']
   ]
 
   const processRows = [
-    ['日处理量', props.processConfig.daily_flow, 'm³/日'],
-    ['污泥回流比 R', props.processConfig.sludge_recirculation_ratio, ''],
-    ['内回流比 r', props.processConfig.internal_recirculation_ratio, ''],
-    ['污泥龄 SRT', props.processConfig.srt, '天'],
-    ['曝气量', props.processConfig.aeration_rate, 'm³/h'],
-    ['厌氧池容积', props.processConfig.anaerobic.volume, 'm³'],
-    ['厌氧池 HRT', props.processConfig.anaerobic.hrt, 'h'],
-    ['缺氧池容积', props.processConfig.anoxic.volume, 'm³'],
-    ['缺氧池 HRT', props.processConfig.anoxic.hrt, 'h'],
-    ['好氧池容积', props.processConfig.aerobic.volume, 'm³'],
-    ['好氧池 HRT', props.processConfig.aerobic.hrt, 'h'],
-    ['二沉池容积', props.processConfig.clarifier.volume, 'm³'],
-    ['仿真时长', props.simConfig.total_duration_days, '天']
+    ['日处理量', pc.daily_flow, 'm³/日'],
+    ['污泥回流比 R', pc.sludge_recirculation_ratio, ''],
+    ['内回流比 r', pc.internal_recirculation_ratio, ''],
+    ['污泥龄 SRT', pc.srt, '天'],
+    ['曝气量', pc.aeration_rate, 'm³/h'],
+    ['厌氧池容积', pc.anaerobic.volume, 'm³'],
+    ['厌氧池 HRT', pc.anaerobic.hrt, 'h'],
+    ['缺氧池容积', pc.anoxic.volume, 'm³'],
+    ['缺氧池 HRT', pc.anoxic.hrt, 'h'],
+    ['好氧池容积', pc.aerobic.volume, 'm³'],
+    ['好氧池 HRT', pc.aerobic.hrt, 'h'],
+    ['二沉池容积', pc.clarifier.volume, 'm³'],
+    ['仿真时长', sc.total_duration_days, '天']
   ]
+
+  let complianceHtml = ''
+  if (c) {
+    const rows = [
+      { name: 'COD', value: c.cod[0].toFixed(2), limit: `≤${c.cod[1]}`, compliant: c.cod[2] },
+      { name: 'BOD5', value: c.bod5[0].toFixed(2), limit: `≤${c.bod5[1]}`, compliant: c.bod5[2] },
+      { name: 'SS', value: c.ss[0].toFixed(2), limit: `≤${c.ss[1]}`, compliant: c.ss[2] },
+      { name: 'TN', value: c.tn[0].toFixed(2), limit: `≤${c.tn[1]}`, compliant: c.tn[2] },
+      { name: 'NH3-N', value: c.nh3_n[0].toFixed(2), limit: `≤${c.nh3_n[1]}`, compliant: c.nh3_n[2] },
+      { name: 'TP', value: c.tp[0].toFixed(3), limit: `≤${c.tp[1]}`, compliant: c.tp[2] }
+    ]
+    complianceHtml = rows.map(r => `
+      <tr>
+        <td>${r.name}</td>
+        <td class="${r.compliant ? 'compliant' : 'non-compliant'}">${r.value}</td>
+        <td>${r.limit}</td>
+        <td><span class="tag ${r.compliant ? 'tag-success' : 'tag-danger'}">${r.compliant ? '达标' : '超标'}</span></td>
+      </tr>
+    `).join('')
+  }
+
+  let conclusionText = ''
+  if (c) {
+    const overLimit = []
+    if (!c.cod[2]) overLimit.push(`COD (${c.cod[0].toFixed(2)} > ${c.cod[1]})`)
+    if (!c.bod5[2]) overLimit.push(`BOD5 (${c.bod5[0].toFixed(2)} > ${c.bod5[1]})`)
+    if (!c.ss[2]) overLimit.push(`SS (${c.ss[0].toFixed(2)} > ${c.ss[1]})`)
+    if (!c.tn[2]) overLimit.push(`TN (${c.tn[0].toFixed(2)} > ${c.tn[1]})`)
+    if (!c.nh3_n[2]) overLimit.push(`NH3-N (${c.nh3_n[0].toFixed(2)} > ${c.nh3_n[1]})`)
+    if (!c.tp[2]) overLimit.push(`TP (${c.tp[0].toFixed(3)} > ${c.tp[1]})`)
+
+    if (c.overall_compliant) {
+      conclusionText = `本次仿真结果表明，在当前进水水质和工艺参数配置下，A²/O污水处理工艺的各项出水指标均达到国家一级A排放标准。最终出水COD为${c.cod[0].toFixed(2)}mg/L、氨氮为${c.nh3_n[0].toFixed(2)}mg/L、总氮为${c.tn[0].toFixed(2)}mg/L、总磷为${c.tp[0].toFixed(3)}mg/L。系统吨水电耗为${ec.kwh_per_m3.toFixed(3)}kWh/m³，能耗水平合理。整体工况运行稳定，处理效果良好。`
+    } else {
+      conclusionText = `本次仿真结果表明，在当前进水水质和工艺参数配置下，A²/O污水处理工艺存在以下超标项：${overLimit.join('、')}。总体未达到国家一级A排放标准。建议针对性调整工艺参数，如${!c.nh3_n[2] || !c.tn[2] ? '提高内回流比、延长好氧池HRT以强化硝化反硝化效果' : ''}${!c.tp[2] ? '、优化厌氧池运行条件促进聚磷菌释磷' : ''}${!c.cod[2] || !c.bod5[2] ? '、调整污泥龄SRT保证有机物充分降解' : ''}。当前系统吨水电耗为${ec.kwh_per_m3.toFixed(3)}kWh/m³。`
+    }
+  }
+
+  const overallTag = c
+    ? `<span class="tag ${c.overall_compliant ? 'tag-success' : 'tag-danger'}" style="font-size: 15px; padding: 6px 16px;">${c.overall_compliant ? '✓ 总体达标' : '✗ 未达标'}</span>`
+    : ''
 
   const html = `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -654,12 +778,12 @@ const exportReport = async () => {
 <body>
 
 <div class="header">
-  <h1>🏭 污水处理工艺仿真报告</h1>
+  <h1>污水处理工艺仿真报告</h1>
   <p>基于ASM1简化模型的A²/O工艺仿真系统 | 报告生成时间: ${timeStr}</p>
 </div>
 
 <div class="section">
-  <div class="section-title">📋 进水参数</div>
+  <div class="section-title">进水参数</div>
   <table>
     <thead>
       <tr><th>指标</th><th>数值</th><th>单位</th></tr>
@@ -671,7 +795,7 @@ const exportReport = async () => {
 </div>
 
 <div class="section">
-  <div class="section-title">⚙️ 工艺配置参数</div>
+  <div class="section-title">工艺配置参数</div>
   <table>
     <thead>
       <tr><th>参数项</th><th>数值</th><th>单位</th></tr>
@@ -683,53 +807,44 @@ const exportReport = async () => {
 </div>
 
 <div class="section">
-  <div class="section-title">✅ 达标判定结果 (一级A标)</div>
+  <div class="section-title">达标判定结果 (一级A标)</div>
   <table>
     <thead>
       <tr><th>指标</th><th>出水值</th><th>标准限值</th><th>达标</th></tr>
     </thead>
     <tbody>
-      ${complianceRows.value.map(r => `
-        <tr>
-          <td>${r.name}</td>
-          <td class="${r.compliant ? 'compliant' : 'non-compliant'}">${r.value}</td>
-          <td>${r.limit}</td>
-          <td><span class="tag ${r.compliant ? 'tag-success' : 'tag-danger'}">${r.compliant ? '达标' : '超标'}</span></td>
-        </tr>
-      `).join('')}
+      ${complianceHtml}
     </tbody>
   </table>
   <div style="margin-top: 16px;">
-    <span class="tag ${result.compliance.overall_compliant ? 'tag-success' : 'tag-danger'}" style="font-size: 15px; padding: 6px 16px;">
-      ${result.compliance.overall_compliant ? '✓ 总体达标' : '✗ 未达标'}
-    </span>
+    ${overallTag}
   </div>
 </div>
 
 <div class="section">
-  <div class="section-title">📈 好氧池出水氮形态变化趋势</div>
+  <div class="section-title">好氧池出水氮形态变化趋势</div>
   <div class="chart-box">
     ${nitrogenChart ? `<img src="${nitrogenChart}" alt="氮形态变化" />` : '<p>图表加载失败</p>'}
   </div>
 </div>
 
 <div class="section">
-  <div class="section-title">📉 主要出水指标变化趋势</div>
+  <div class="section-title">主要出水指标变化趋势</div>
   <div class="chart-box">
     ${mainChart ? `<img src="${mainChart}" alt="主要指标变化" />` : '<p>图表加载失败</p>'}
   </div>
 </div>
 
 <div class="section">
-  <div class="section-title">⚡ 能耗分析</div>
+  <div class="section-title">能耗分析</div>
   <div class="stat-grid">
     <div class="stat-card">
       <div class="stat-label">总能耗</div>
-      <div class="stat-value">${result.energy_consumption.total_kwh.toFixed(1)} <span style="font-size: 14px;">kWh/日</span></div>
+      <div class="stat-value">${ec ? ec.total_kwh.toFixed(1) : '-'} <span style="font-size: 14px;">kWh/日</span></div>
     </div>
     <div class="stat-card">
       <div class="stat-label">吨水电耗</div>
-      <div class="stat-value">${result.energy_consumption.kwh_per_m3.toFixed(3)} <span style="font-size: 14px;">kWh/m³</span></div>
+      <div class="stat-value">${ec ? ec.kwh_per_m3.toFixed(3) : '-'} <span style="font-size: 14px;">kWh/m³</span></div>
     </div>
   </div>
   <div class="chart-box">
@@ -738,8 +853,8 @@ const exportReport = async () => {
 </div>
 
 <div class="section">
-  <div class="section-title">📝 结论</div>
-  <div class="conclusion">${generateConclusion()}</div>
+  <div class="section-title">结论</div>
+  <div class="conclusion">${conclusionText || '暂无结论数据'}</div>
 </div>
 
 <div class="footer">
@@ -753,7 +868,7 @@ const exportReport = async () => {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `污水处理仿真报告_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}.html`
+  a.download = `污水处理仿真报告_${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}_${pad2(now.getHours())}${pad2(now.getMinutes())}.html`
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
