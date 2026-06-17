@@ -79,7 +79,12 @@ pub fn run_sensitivity_analysis(req: &SensitivityRequest) -> SensitivityResult {
             "mlss_anaerobic" => process.anaerobic.mlss = param_value,
             "mlss_anoxic" => process.anoxic.mlss = param_value,
             "do_aerobic" => process.aerobic.do_setpoint = param_value,
+            "do_anaerobic" => process.anaerobic.do_setpoint = param_value,
+            "do_anoxic" => process.anoxic.do_setpoint = param_value,
             "hrt_aerobic" => process.aerobic.hrt = param_value,
+            "hrt_anaerobic" => process.anaerobic.hrt = param_value,
+            "hrt_anoxic" => process.anoxic.hrt = param_value,
+            "hrt_clarifier" => process.clarifier.hrt = param_value,
             _ => {}
         }
 

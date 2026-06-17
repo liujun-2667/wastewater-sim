@@ -225,8 +225,27 @@
                   </div>
                 </div>
                 <div v-else class="col-body col-empty">
-                  <el-icon :size="32"><circle-check /></el-icon>
-                  <p>当前无此问题</p>
+                  <div class="empty-icon-wrap">
+                    <el-icon :size="32" color="#67c23a"><circle-check /></el-icon>
+                  </div>
+                  <div class="empty-text">当前无此问题</div>
+                  <div class="col-param-row placeholder-row">
+                    <span class="col-param-label">关联参数:</span>
+                    <span class="col-param-name placeholder">—</span>
+                  </div>
+                  <div class="col-param-compare">
+                    <div class="col-param-block placeholder-block">
+                      <div class="col-param-label-sm">当前值</div>
+                      <div class="col-param-value placeholder-v">—</div>
+                    </div>
+                    <div class="col-arrow placeholder-arrow">
+                      <el-icon :size="18"><right /></el-icon>
+                    </div>
+                    <div class="col-param-block placeholder-block">
+                      <div class="col-param-label-sm">推荐值</div>
+                      <div class="col-param-value placeholder-v">—</div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -262,8 +281,27 @@
                   </div>
                 </div>
                 <div v-else class="col-body col-empty">
-                  <el-icon :size="32"><circle-check /></el-icon>
-                  <p>上次无此问题</p>
+                  <div class="empty-icon-wrap">
+                    <el-icon :size="32" color="#67c23a"><circle-check /></el-icon>
+                  </div>
+                  <div class="empty-text">上次无此问题</div>
+                  <div class="col-param-row placeholder-row">
+                    <span class="col-param-label">关联参数:</span>
+                    <span class="col-param-name placeholder">—</span>
+                  </div>
+                  <div class="col-param-compare">
+                    <div class="col-param-block placeholder-block">
+                      <div class="col-param-label-sm">当时值</div>
+                      <div class="col-param-value placeholder-v">—</div>
+                    </div>
+                    <div class="col-arrow placeholder-arrow">
+                      <el-icon :size="18"><right /></el-icon>
+                    </div>
+                    <div class="col-param-block placeholder-block">
+                      <div class="col-param-label-sm">推荐值</div>
+                      <div class="col-param-value placeholder-v">—</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -422,22 +460,23 @@ import {
 } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
-import { LineChart, MarkLineComponent } from 'echarts/charts'
+import { LineChart } from 'echarts/charts'
 import {
   GridComponent,
   TooltipComponent,
   LegendComponent,
-  TitleComponent
+  TitleComponent,
+  MarkLineComponent
 } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 
 use([
   LineChart,
-  MarkLineComponent,
   GridComponent,
   TooltipComponent,
   LegendComponent,
   TitleComponent,
+  MarkLineComponent,
   CanvasRenderer
 ])
 
@@ -509,10 +548,10 @@ const paramPathToSensitivityName = {
   'aeration_rate': 'aeration_rate',
   'internal_recirculation_ratio': 'internal_recirculation_ratio',
   'srt': 'srt',
-  'anoxic.do_setpoint': 'do_aerobic',
-  'anaerobic.do_setpoint': 'mlss_anaerobic',
-  'anaerobic.hrt': 'hrt_aerobic',
-  'clarifier.hrt': 'hrt_aerobic'
+  'anoxic.do_setpoint': 'do_anoxic',
+  'anaerobic.do_setpoint': 'do_anaerobic',
+  'anaerobic.hrt': 'hrt_anaerobic',
+  'clarifier.hrt': 'hrt_clarifier'
 }
 
 const severityClass = (severity) => {
@@ -1754,16 +1793,44 @@ onMounted(() => {
 .col-body.col-empty {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+  align-items: stretch;
+  gap: 10px;
   color: #909399;
   background: #fafafa;
 }
 
-.col-body.col-empty p {
-  margin: 0;
+.empty-icon-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.empty-text {
+  text-align: center;
   font-size: 13px;
+  font-weight: 500;
+  color: #67c23a;
+  margin-bottom: 4px;
+}
+
+.placeholder-row .placeholder {
+  color: #c0c4cc;
+  font-weight: 500;
+}
+
+.placeholder-block {
+  opacity: 0.6;
+}
+
+.placeholder-arrow {
+  color: #e4e7ed;
+}
+
+.placeholder-v {
+  background: #f5f7fa !important;
+  color: #c0c4cc !important;
+  border: 1px dashed #e4e7ed;
+  font-weight: 500 !important;
 }
 
 .diagnosis-history {
